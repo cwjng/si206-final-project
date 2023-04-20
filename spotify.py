@@ -1,16 +1,10 @@
-import requests
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
-import unittest
 import sqlite3
-import json
+import requests
 import os
 import time
 
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
-import sqlite3
-import time
 
 
 # authenticate with Spotipy using client ID and secret
@@ -18,11 +12,6 @@ client_id = '35a59c0bdc734f3bbcd14555e527ebaf'
 client_secret = '0888a300374e42d19c442b2f91bc72d1'
 client_credentials_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
 sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
-
-
-# Retrieve the top 100 most streamed artists of 2021
-results = sp.search(q='year:2022', type='artist', limit=10)
-
 
 # Connect to the SQLite database
 conn = sqlite3.connect('top_artists.db')
@@ -32,15 +21,53 @@ c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS top_artists
              (id TEXT PRIMARY KEY,
               name TEXT NOT NULL,
-              streams INTEGER NOT NULL)''')
+              streams INTEGER NOT NULL,
+              followers INTEGER)''')
 
-# Insert each artist into the "top_artists" table
-for item in results['artists']['items']:
-    artist_id = item['id']
-    artist_name = item['name']
-    artist_streams = item['popularity']
-    c.execute("INSERT OR IGNORE INTO top_artists (id, name, streams) VALUES (?, ?, ?)", 
-              (artist_id, artist_name, artist_streams))
+# Check how many rows are already in the table
+c.execute("SELECT COUNT(*) FROM top_artists")
+num_rows = c.fetchone()[0]
+
+if num_rows < 100:
+    # Retrieve the top 50 most streamed artists of 2021
+    results = sp.search(q='year:2022', type='artist', limit=50)
+    print()
+
+    # Insert each artist into the "top_artists" table
+    count = 0
+    for item in results['artists']['items']:
+        # Check if we have already inserted 100 items
+        if num_rows + count >= 100:
+            break
+
+        artist_id = item['id']
+        artist_name = item['name']
+        artist_streams = item['popularity']
+        artist_info = sp.artist(artist_id)
+        followers = artist_info['followers']['total']
+        c.execute("INSERT OR IGNORE INTO top_artists (id, name, streams,followers) VALUES (?, ?, ?, ?)",
+                  (artist_id, artist_name, artist_streams,followers))
+        count += 1
+
+    # Retrieve the next 50 most streamed artists of 2021
+    results = sp.search(q='year:2022', type='artist', limit=50, offset=50)
+
+    # Insert each artist into the "top_artists" table
+    count = 0
+    for item in results['artists']['items']:
+        # Check if we have already inserted 100 items
+        if num_rows + count >= 100:
+            break
+
+        artist_id = item['id']
+        artist_name = item['name']
+        artist_streams = item['popularity']
+        artist_info = sp.artist(artist_id)
+        followers = artist_info['followers']['total']
+        c.execute("INSERT OR IGNORE INTO top_artists (id, name, streams,followers) VALUES (?, ?, ?, ?)",
+                  (artist_id, artist_name, artist_streams,followers))
+
+        count += 1
 
 # Commit the changes to the database and close the connection
 conn.commit()

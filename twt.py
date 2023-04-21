@@ -31,7 +31,6 @@ c = conn.cursor()
 last_artist_name = ''
 # Initialize the counter
 artist_count = 0
-conn.close()
 
 # Loop until all artists are searched
 while True:
@@ -76,12 +75,10 @@ while True:
                 if tweet.entities['user_mentions']:
                     mention_count += 1
 
-            # Calculate the total engagement count
-            total_engagements = tweet_count + retweet_count + mention_count
 
             # Update artist record in database
             c.execute("UPDATE top_artists SET tweets=?, retweets=?, mentions=?, total_engagements=? WHERE name=?",
-                    (tweet_count, retweet_count, mention_count, total_engagements, artist[0]))
+                    (tweet_count, retweet_count, mention_count, artist[0]))
             conn.commit()
             print("Changes committed")
 

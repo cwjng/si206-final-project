@@ -38,66 +38,62 @@ c2.execute('''CREATE TABLE IF NOT EXISTS artist_twt
               retweet INTEGER,
               mention INTEGER)''')
 
-# Initialize the last searched artist name
-last_artist_name = ''
+
 # Initialize the counter
 artist_count = 0
 
-# Loop until all artists are searched
-while True:
-    # Get 25 distinct artists from the database, starting from the last searched artist
-    artists = c.execute("SELECT name, popularity FROM top_artists").fetchall()
+# Get the last read row number or start from 0 if none exists
+last_row = c2.execute("SELECT MAX(id) FROM artist_twt").fetchone()[0] or 0
 
-    # Stop the loop if no more artists are found
-    if not artists:
+# Get the next set of 25 rows
+artists = c.execute(f"SELECT name, popularity FROM top_artists WHERE id > {last_row} LIMIT 25").fetchall()
+
+# Loop through artists and count tweets, retweets and mentions
+for artist in artists:
+    if artist_count >= 25:
         break
+    else:
+        artist_count += 1
+        print(artist_count)
+        # Construct query string for artist search
+        query = f"{artist[0]} OR @{artist[0]} since:{(datetime.today() - timedelta(days=7)).strftime('%Y-%m-%d')}"
 
-    # Loop through artists and count tweets, retweets and mentions
-    for artist in artists:
-        if artist_count >= 25:
-            break
-        else:
-            artist_count += 1
-            print(artist_count)
-            # Construct query string for artist search
-            query = f"{artist[0]} OR @{artist[0]} since:{(datetime.today() - timedelta(days=7)).strftime('%Y-%m-%d')}"
+        # Get tweets containing the artist name
+        while True:
+            try:
+                tweets = tweepy.Cursor(api.search_tweets, q=query, tweet_mode='extended').items(66)
+                break
+            except tweepy.TooManyRequests as e:
+                time.sleep(60*15) # wait 15 minutes before trying again
 
-            # Get tweets containing the artist name
-            while True:
-                try:
-                    tweets = tweepy.Cursor(api.search_tweets, q=query, tweet_mode='extended').items(66)
-                    break
-                except tweepy.TooManyRequests as e:
-                    time.sleep(60*15) # wait 15 minutes before trying again
-
-            # Count tweets, retweets and mentions
-            tweet_count = 0
-            retweet_count = 0
-            mention_count = 0
-            print('Searching for tweets for ' + artist[0])
-            for tweet in tweets:
-                # Check if the artist name is mentioned in the tweet text or full text
-                if artist[0].lower() in tweet.full_text.lower():
-                    tweet_count += 1
-                # Check if the tweet is a retweet and increment retweet count
-                if hasattr(tweet, 'retweeted_status'):
-                    retweet_count += 1
-                # Check if the tweet mentions another user and increment mention count
-                if tweet.entities['user_mentions']:
-                    mention_count += 1
+        # Count tweets, retweets and mentions
+        tweet_count = 0
+        retweet_count = 0
+        mention_count = 0
+        print('Searching for tweets for ' + artist[0])
+        for tweet in tweets:
+            # Check if the artist name is mentioned in the tweet text or full text
+            if artist[0].lower() in tweet.full_text.lower():
+                tweet_count += 1
+            # Check if the tweet is a retweet and increment retweet count
+            if hasattr(tweet, 'retweeted_status'):
+                retweet_count += 1
+            # Check if the tweet mentions another user and increment mention count
+            if tweet.entities['user_mentions']:
+                mention_count += 1
 
 
-            # Update artist record in new database
-            c2.execute("INSERT INTO artist_twt (name, popularity, tweet, retweet, mention) VALUES (?, ?, ?, ?, ?)",
-                    (artist[0], artist[1], tweet_count, retweet_count, mention_count))
-            conn2.commit()
-            print("Changes committed")
+        # Update artist record in new database
+        c2.execute("INSERT INTO artist_twt (name, popularity, tweet, retweet, mention) VALUES (?, ?, ?, ?, ?)",
+                (artist[0], artist[1], tweet_count, retweet_count, mention_count))
+        conn2.commit()
+        print("Changes committed")
 
-            # Set the last searched artist name to the current artist
-            last_artist_name = artist[0]
+        # Set the last searched artist name to the current artist
+        last_artist_name = artist[0]
 
-            # Sleep for a short period to avoid hitting Twitter API rate limits
-            time.sleep(1)
+        # Sleep for a short period to avoid hitting Twitter API rate limits
+        time.sleep(1)
 print('Last artist is ' + last_artist_name)
 # Close database connection
 conn.close()

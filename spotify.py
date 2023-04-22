@@ -62,7 +62,7 @@ if num_rows < 100:
             top_track_name = top_track['name']
             top_track_popularity = top_track['popularity']
 
-            c.execute("INSERT INTO song_info (artist_id, name, top_song, popularity) VALUES (?, ?, ?, ?)",
+            c.execute("INSERT OR IGNORE INTO song_info (artist_id, name, top_song, popularity) VALUES (?, ?, ?, ?)",
                       (artist_row_id, artist_name, top_track_name, top_track_popularity))
             num_rows2 += 1
         else:

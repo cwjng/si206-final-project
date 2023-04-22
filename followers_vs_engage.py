@@ -1,31 +1,31 @@
 import sqlite3
-import matplotlib.pyplot as plt
 
-# Connect to the databases
+# Connect to the spotify database
 spotify_conn = sqlite3.connect('spotify.db')
 spotify_c = spotify_conn.cursor()
 
-twitter_conn = sqlite3.connect('artist_twt.db')
-twitter_c = twitter_conn.cursor()
+# Attach the artist_twt database to the spotify database
+spotify_c.execute("ATTACH DATABASE 'artist_twt.db' AS artist_twt")
 
-# Join the tables
-spotify_c.execute('''SELECT song_info.popularity, artist_twt.engagement 
-                     FROM song_info JOIN artist_twt ON song_info.artist_id = artist_twt.artist_id''')
-rows = spotify_c.fetchall()
+# Query the combined databases using JOIN
+spotify_c.execute('''SELECT song_info.popularity, artist_twt.tweet 
+                     FROM song_info 
+                     JOIN artist_twt.artist_twt ON song_info.artist_id = artist_twt.id''')
 
-# Extract the data
-x = [row[0] for row in rows] # Spotify popularity
-y = [row[1] for row in rows] # Twitter engagement
+# Retrieve the results
+results = spotify_c.fetchall()
 
-# Create the scatterplot
-fig, ax = plt.subplots()
-ax.scatter(x, y, alpha=0.5)
-
-ax.set_xlabel('Spotify Popularity')
-ax.set_ylabel('Twitter Engagement')
-
-plt.show()
-
-# Close the connections
+# Close the connection to the databases
 spotify_conn.close()
-twitter_conn.close()
+
+# Visualize the results using matplotlib
+import matplotlib.pyplot as plt
+
+x = [result[0] for result in results]
+y = [result[1] for result in results]
+
+plt.scatter(x, y)
+plt.xlabel('Spotify Popularity')
+plt.ylabel('Twitter Tweet')
+plt.title("Twitter Tweet vs Spotify Popularity")
+plt.show()

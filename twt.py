@@ -24,8 +24,19 @@ except Exception as e:
     print("Error during authentication:", e)
 
 # Connect to SQLite database
-conn = sqlite3.connect('top_artists.db')
+conn = sqlite3.connect('spotify.db')
 c = conn.cursor()
+
+# Create a new database called 'artist_twt'
+conn2 = sqlite3.connect('artist_twt.db')
+c2 = conn2.cursor()
+c2.execute('''CREATE TABLE IF NOT EXISTS artist_twt
+             (id INTEGER PRIMARY KEY,
+              name TEXT,
+              popularity INTEGER,
+              tweet INTEGER,
+              retweet INTEGER,
+              mention INTEGER)''')
 
 # Initialize the last searched artist name
 last_artist_name = ''
@@ -35,7 +46,7 @@ artist_count = 0
 # Loop until all artists are searched
 while True:
     # Get 25 distinct artists from the database, starting from the last searched artist
-    artists = c.execute(f"SELECT DISTINCT name FROM top_artists LIMIT 25").fetchall()
+    artists = c.execute("SELECT name, popularity FROM top_artists").fetchall()
 
     # Stop the loop if no more artists are found
     if not artists:
@@ -43,11 +54,11 @@ while True:
 
     # Loop through artists and count tweets, retweets and mentions
     for artist in artists:
-        artist_count += 1
-        print(artist_count)
-        if artist_count > 25:
+        if artist_count >= 25:
             break
         else:
+            artist_count += 1
+            print(artist_count)
             # Construct query string for artist search
             query = f"{artist[0]} OR @{artist[0]} since:{(datetime.today() - timedelta(days=7)).strftime('%Y-%m-%d')}"
 
@@ -76,10 +87,10 @@ while True:
                     mention_count += 1
 
 
-            # Update artist record in database
-            c.execute("UPDATE top_artists SET tweets=?, retweets=?, mentions=?, total_engagements=? WHERE name=?",
-                    (tweet_count, retweet_count, mention_count, artist[0]))
-            conn.commit()
+            # Update artist record in new database
+            c2.execute("INSERT INTO artist_twt (name, popularity, tweet, retweet, mention) VALUES (?, ?, ?, ?, ?)",
+                    (artist[0], artist[1], tweet_count, retweet_count, mention_count))
+            conn2.commit()
             print("Changes committed")
 
             # Set the last searched artist name to the current artist
@@ -87,6 +98,6 @@ while True:
 
             # Sleep for a short period to avoid hitting Twitter API rate limits
             time.sleep(1)
-            print('Last artist is ' + last_artist_name)
-    # Close database connection
-    conn.close()
+print('Last artist is ' + last_artist_name)
+# Close database connection
+conn.close()

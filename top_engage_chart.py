@@ -6,7 +6,7 @@ conn = sqlite3.connect('artist_twt.db')
 c = conn.cursor()
 
 # Select the top 25 artists by total engagements
-c.execute("SELECT name, tweets, retweets, mentions, total_engagements FROM artist_twt ORDER BY total_engagements DESC LIMIT 25")
+c.execute("SELECT name, tweet, retweet, mention, total_engagements FROM artist_twt ORDER BY total_engagements DESC LIMIT 25")
 
 # Create empty lists for the data
 names = []

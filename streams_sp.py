@@ -7,7 +7,7 @@ conn = sqlite3.connect('artist_twt.db')
 c = conn.cursor()
 
 # Select all 100 artists and their data
-c.execute("SELECT id, name, streams, tweets, retweets, mentions, total_engagements FROM artist_twt ORDER BY popularity DESC LIMIT 25")
+c.execute("SELECT id, name, popularity, tweet, retweet, mention, total_engagements FROM artist_twt ORDER BY popularity DESC LIMIT 25")
 data = c.fetchall()
 
 # Extract the data for the scatter plot
@@ -20,7 +20,7 @@ engagements = [row[6] for row in data]
 plt.scatter(popularity, engagements, c='green')
 
 # Set the x and y-axis labels and title
-plt.xlabel('Spotify popularity (per million)')
+plt.xlabel('Spotify popularity')
 plt.ylabel('Twitter Engagements')
 plt.title('Correlation Between Spotify Popularity and Twitter Engagements')
 
